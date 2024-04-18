@@ -1,2 +1,2 @@
 .streamlit/secrets.toml
-myfile.csv
+.DS_Store
