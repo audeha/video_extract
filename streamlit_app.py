@@ -1,7 +1,11 @@
 import boto3
-import time 
+import os
+import sys 
 import tempfile
-from moviepy.editor import VideoFileClip
+import time
+import traceback
+import requests
+#gefrom moviepy.editor import VideoFileClip
 import streamlit as st
 from st_files_connection import FilesConnection
 
@@ -31,29 +35,41 @@ if uploaded_file is not None:
     # Define the bucket path
     audio_bucket_path = f"monbucketaudio/{uploaded_file.name}.{file_extension}"
 
-    # Upload the file to the bucket
-    with conn.fs.open(audio_bucket_path, 'wb') as f:
-        f.write(open(temp_file.name, 'rb').read())
+    try:
+        # Upload the file to the bucket
+        with conn.fs.open(audio_bucket_path, 'wb') as f:
+            f.write(open(temp_file.name, 'rb').read())
+    except Exception as e:
+        print("Failed to upload file to S3:")
+        print(str(e))
+        print(traceback.format_exc())
+        sys.exit(1)
 
-        # Create a unique transcription job name
-        job_name = f"MyTranscriptionJob_{int(time.time())}"
+    # Create a unique transcription job name
+    base_name = os.path.basename(temp_file.name)  # Get the base name of the file
+    sanitized_name = "".join(c for c in base_name if c.isalnum() or c in (' ', '.', '_'))  # Remove any special characters
+    job_name = f"MyTranscriptionJob_{sanitized_name}"
+
         
-        # Create a transcription job
-        transcribe.start_transcription_job(
-            TranscriptionJobName=job_name,
-            Media={'MediaFileUri': f"s3://{audio_bucket_path}"},
-            MediaFormat='mp3',
-            LanguageCode='en-US',
-            Settings={'ShowSpeakerLabels': True, 'MaxSpeakerLabels': 2}
-        )
+    # Create a transcription job
+    transcribe.start_transcription_job(
+        TranscriptionJobName=job_name,
+        Media={'MediaFileUri': f"s3://{audio_bucket_path}"},
+        MediaFormat='mp3',
+        LanguageCode='en-US',
+        Settings={'ShowSpeakerLabels': True, 'MaxSpeakerLabels': 2}
+    )
 
-        # Wait for the transcription job to complete
-        while True:
-            status = transcribe.get_transcription_job(TranscriptionJobName='MyTranscriptionJob')
-            if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
-                break
-            print("Waiting for transcription job to complete...")
-            time.sleep(10)
+    # Wait for the transcription job to complete
+    while True:
+        status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+        if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+            break
+        print("Waiting for transcription job to complete...")
+        time.sleep(10)
 
-        # Print the URL of the transcription output
-        print(status['TranscriptionJob']['Transcript']['TranscriptFileUri'])
+    # If the transcription job completed successfully, print the transcript
+    if status['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
+        transcript_file_uri = status['TranscriptionJob']['Transcript']['TranscriptFileUri']
+        transcript_text = requests.get(transcript_file_uri).json()['results']['transcripts'][0]['transcript']
+        st.write(transcript_text)
