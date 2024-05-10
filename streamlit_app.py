@@ -2,6 +2,11 @@ import streamlit as st
 import tempfile
 from st_files_connection import FilesConnection
 from moviepy.editor import VideoFileClip
+import boto3
+import time 
+
+# Initialize the AWS Transcribe client
+transcribe = boto3.client('transcribe')
 
 # Establish a connection using Streamlit's connection function
 conn = st.connection('s3', type=FilesConnection)
@@ -35,3 +40,23 @@ if uploaded_video is not None:
             audio_bucket_path = f"monbucketaudio/{uploaded_video.name}.mp3"
             with conn.fs.open(audio_bucket_path, 'wb') as f:
                 f.write(open(temp_audio_file.name, 'rb').read())
+            
+            # Create a transcription job
+            transcribe.start_transcription_job(
+                TranscriptionJobName='MyTranscriptionJob',
+                Media={'MediaFileUri': f"s3://{audio_bucket_path}"},
+                MediaFormat='mp3',
+                LanguageCode='en-US',
+                Settings={'ShowSpeakerLabels': True, 'MaxSpeakerLabels': 2}
+            )
+
+            # Wait for the transcription job to complete
+            while True:
+                status = transcribe.get_transcription_job(TranscriptionJobName='MyTranscriptionJob')
+                if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+                    break
+                print("Waiting for transcription job to complete...")
+                time.sleep(10)
+
+            # Print the URL of the transcription output
+            print(status['TranscriptionJob']['Transcript']['TranscriptFileUri'])
