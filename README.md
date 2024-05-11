@@ -22,6 +22,8 @@ Then wait and the text will be printed in your app. </p>
 Tu use the application online, go to https://videoextractaudeha.streamlit.app/ and upload your video. </p>
 The application will then transcribe the file and present the key ideas as bullet points. </p>
 
+Note that the input file must be in English. If your audio/video is in another language, you need to set your language in `LanguageCode` in the file streamlit_app.py.
+
 ## Development
 This project is currently under development. More features and improvements are coming soon. </p>
 Currently chances are it will not work if you don't run it from wsl because some paths are hardcoded. 
