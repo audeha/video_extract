@@ -1,3 +1,5 @@
+NOTE: this will not be further developped as I ran out of credits for the service :/
+
 # Streamlit Video Extract App
 This project is a Streamlit application designed to transcribe audio and video files into text.  </p>
 The goal is to extract key ideas as bullet points from meeting recordings or YouTube videos, providing a convenient way to review and reference important points.
